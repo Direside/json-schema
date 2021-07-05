@@ -132,6 +132,18 @@ module JSON
       end
     end
 
+    def find_nested_schemas(parent_schema, schema)
+      schema.each do |key, value|
+        if value.is_a?(Hash)
+          if value["$ref"]
+            load_ref_schema(parent_schema, value["$ref"])
+          else
+            find_nested_schemas(parent_schema, value)
+          end
+        end
+      end
+    end
+
     def load_ref_schema(parent_schema, ref)
       schema_uri = JSON::Util::URI.absolutize_ref(ref, parent_schema.uri)
       return true if self.class.schema_loaded?(schema_uri)
@@ -147,6 +159,10 @@ module JSON
     # Build all schemas with IDs, mapping out the namespace
     def build_schemas(parent_schema)
       schema = parent_schema.schema
+
+      # Make sure we load in any nested $ref values that aren't
+      # part of the main schema
+      find_nested_schemas(parent_schema, schema)
 
       # Build ref schemas if they exist
       if schema["$ref"]
